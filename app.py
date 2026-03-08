@@ -3,42 +3,45 @@ import ccxt
 import pandas as pd
 import pandas_ta as ta
 
+# Page configuration
 st.set_page_config(page_title="Prime Vortex Dashboard", layout="wide")
 
 st.title("🌐 Prime Vortex Crypto Scanner")
-st.write("Real-time RSI & Trend analysis for top 50 Global Assets.")
+st.write("Real-time market analysis for top assets.")
 
-# List of Symbols
-SYMBOLS = [
-    'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 
-    'AVAX/USDT', 'DOT/USDT', 'LINK/USDT', 'MATIC/USDT'
-]
+# List of main symbols
+SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT']
 
 def fetch_data(symbol):
     try:
         exchange = ccxt.kucoin()
+        # Fetch 100 hourly candles
         bars = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=100)
         df = pd.DataFrame(bars, columns=['ts', 'open', 'high', 'low', 'close', 'vol'])
+        
+        # Indicators
         df['RSI'] = ta.rsi(df['close'], length=14)
-        df['EMA_50'] = ta.ema(df['close'], length=50)
+        
         return {
             "Symbol": symbol,
             "Price": df['close'].iloc[-1],
             "RSI": round(df['RSI'].iloc[-1], 2),
-            "Trend": "Bullish" if df['close'].iloc[-1] > df['EMA_50'].iloc[-1] else "Bearish"
+            "Status": "Oversold" if df['RSI'].iloc[-1] < 35 else "Normal"
         }
-    except:
+    except Exception as e:
         return None
 
-if st.button('🔄 Refresh Market Data'):
-    data_list = []
-    with st.spinner('Scanning market...'):
-        for s in SYMBOLS:
-            res = fetch_data(s)
-            if res:
-                data_list.append(res)
+# Refresh Button
+if st.button('🔄 Update Prices'):
+    results = []
+    for s in SYMBOLS:
+        data = fetch_data(s)
+        if data:
+            results.append(data)
     
-    df_display = pd.DataFrame(data_list)
-    
-    # Styling
-    st.table(df_display)
+    if results:
+        st.table(pd.DataFrame(results))
+    else:
+        st.error("Could not fetch data. Please check your connection.")
+else:
+    st.info("Click the button above to load market data.")
